@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>给据函件条码生成与校验工具</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <style>
+        :root {
+            --primary: #008542; 
+            --bg: #f4f7f6;
+            --card-bg: #ffffff;
+            --text: #333333;
+            --border: #dddddd;
+            --purple: #6f42c1;
+            --dark: #24292e;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .wrapper {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        h1 { color: var(--primary); font-size: 24px; margin-top: 10px; margin-bottom: 10px; text-align: center;}
+        
+        .container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .card {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border-top: 4px solid var(--primary);
+        }
+        .card-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+        .input-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .input-item {
+            flex: 1;
+            min-width: 150px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        label { font-size: 14px; font-weight: bold; color: #555; }
+        input, select {
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            font-size: 16px;
+            outline: none;
+        }
+        input:focus, select:focus { border-color: var(--primary); }
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        button:hover { background-color: #006633; }
+        .result-area {
+            margin-top: 20px;
+            text-align: center;
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 5px;
+            display: none;
+        }
+        #barcode-svg { max-width: 100%; height: auto; }
+        
+        .history-list {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #666;
+            max-height: 350px; 
+            overflow-y: auto;
+        }
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px dashed #eee;
+        }
+        .message {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            display: none;
+        }
+        .msg-error { background-color: #fee2e2; color: #991b1b; border: 1px solid #f87171; }
+        .msg-success { background-color: #dcfce7; color: #166534; border: 1px solid #4ade80; }
+
+        .top-nav {
+            display: flex;
+            justify-content: flex-start; 
+            align-items: center;
+            width: 100%;
+            margin-bottom: 5px;
+            gap: 10px; 
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            text-decoration: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            white-space: nowrap; 
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .nav-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            opacity: 0.9;
+        }
+
+        .github-btn {
+            background-color: var(--dark);
+            color: #ffffff !important;
+        }
+
+        .switch-btn {
+            background-color: var(--purple);
+            color: #ffffff !important;
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .card { padding: 20px 15px; }
+            h1 { font-size: 20px; }
+            .top-nav { justify-content: space-between; }
+            .nav-btn { flex: 1; text-align: center; justify-content: center; font-size: 11px; padding: 8px 6px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="wrapper">
+        <div class="top-nav">
+            <a href="https://github.com/Rayista" target="_blank" class="nav-btn github-btn">
+                <svg height="16" width="16" viewBox="0 0 16 16" style="fill: white; margin-right: 6px;"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+                GitHub
+            </a>
+            <a href="https://rayista.github.io/Mian-Post-Receptacle-Barcode-Parsing-tools/" target="_blank" class="nav-btn switch-btn">
+                🔄 缅邮总包条码解析
+            </a>
+            <a href="https://rayista.github.io/UPU-S9-Receptacle-Barcode-Parsing-tools/" target="_blank" class="nav-btn switch-btn">
+                🔄 UPU S9 总包条码解析
+            </a>
+        </div>
+
+        <h1>给据函件条码生成与校验工具</h1>
+
+        <div class="container">
+            <div class="card">
+                <div class="card-title">📦 条码生成器</div>
+                <div class="input-group">
+                    <div class="input-item">
+                        <label for="prefix">邮件种类</label>
+                        <input type="text" id="prefix" maxlength="2" placeholder="如: SA" style="text-transform: uppercase;">
+                    </div>
+                    <div class="input-item">
+                        <label for="serial">邮件顺序号</label>
+                        <input type="text" id="serial" maxlength="8" placeholder="如: 11451419" oninput="this.value=this.value.replace(/\D/g,'')">
+                    </div>
+                    <div class="input-item">
+                        <label for="province">省份/国家代码</label>
+                        <input list="province-list" id="province" placeholder="选取或输入 (如: 11 或 CN)">
+                        <datalist id="province-list">
+                            </datalist>
+                    </div>
+                </div>
+                <button onclick="generateBarcode()">生成条码</button>
+
+                <div id="gen-result" class="result-area">
+                    <h2 id="final-barcode-text" style="letter-spacing: 2px; color: var(--primary); margin: 0 0 10px 0;"></h2>
+                    <svg id="barcode-svg"></svg>
+                </div>
+
+                <div class="card-title" style="margin-top: 30px; font-size: 16px;">🕰️ 本地生成记录 (最多保存100条)</div>
+                <div id="history" class="history-list">暂无记录</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">🔍 条码有效性计算器</div>
+                <div class="input-item" style="margin-bottom: 15px;">
+                    <label for="verify-code">请输入完整13位条码</label>
+                    <input type="text" id="verify-code" maxlength="13" placeholder="如: SA12345678511" style="text-transform: uppercase;">
+                </div>
+                <button onclick="verifyBarcode()" style="background-color: #333;">验证有效性</button>
+                <div id="verify-msg" class="message"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const provinceData = {
+            "11": "北京市", "12": "天津市", "13": "河北省", "14": "山西省", "15": "内蒙古自治区",
+            "21": "辽宁省", "22": "吉林省", "23": "黑龙江省",
+            "31": "上海市", "32": "江苏省", "33": "浙江省", "34": "安徽省", "35": "福建省", "36": "江西省", "37": "山东省",
+            "41": "河南省", "42": "湖北省", "43": "湖南省", "44": "广东省", "45": "广西壮族自治区", "46": "海南省",
+            "50": "重庆市", "51": "四川省", "52": "贵州省", "53": "云南省", "54": "西藏自治区",
+            "61": "陕西省", "62": "甘肃省", "63": "青海省", "64": "宁夏回族自治区", "65": "新疆维吾尔自治区",
+            "CN": "中国"
+        };
+
+        window.onload = function() {
+            const datalist = document.getElementById('province-list');
+            for (let code in provinceData) {
+                let option = document.createElement('option');
+                option.value = code;
+                option.text = provinceData[code];
+                datalist.appendChild(option);
+            }
+            loadHistory();
+        };
+
+        function calculateChecksum(serial8) {
+            const weights = [8, 6, 4, 2, 3, 5, 9, 7];
+            let sum = 0;
+            for (let i = 0; i < 8; i++) {
+                sum += parseInt(serial8[i]) * weights[i];
+            }
+            let remainder = sum % 11;
+            let result = 11 - remainder;
+            
+            if (result >= 1 && result <= 9) return result.toString();
+            if (result === 10) return '0';
+            if (result === 11) return '5';
+        }
+
+        function generateBarcode() {
+            let prefix = document.getElementById('prefix').value.trim().toUpperCase();
+            let serial = document.getElementById('serial').value.trim();
+            let provinceInput = document.getElementById('province').value.trim().toUpperCase();
+
+            if (!/^[A-Z]{2}$/.test(prefix)) return alert("前两位必须是2位英文字母！");
+            if (!/^\d{8}$/.test(serial)) return alert("邮件顺序号必须是8位纯数字！");
+            
+            // 匹配输入
+            let provCode = provinceInput;
+            for(let code in provinceData) {
+                if(provinceData[code] === provinceInput) provCode = code;
+            }
+
+            
+            if (provCode.length !== 2) {
+                return alert("为了保证13位条码结构正确，未录入的全新代码请直接输入2位数字或字母（如: TW）！");
+            }
+
+            let checksum = calculateChecksum(serial);
+            let fullBarcode = `${prefix}${serial}${checksum}${provCode}`;
+
+            document.getElementById('gen-result').style.display = 'block';
+            document.getElementById('final-barcode-text').innerText = fullBarcode;
+            
+            JsBarcode("#barcode-svg", fullBarcode, {
+                format: "CODE128",
+                lineColor: "#000",
+                width: 2,
+                height: 80,
+                displayValue: true
+            });
+
+            
+            let provDisplayName = provinceData[provCode] || `未知 (${provCode})`;
+            saveHistory(fullBarcode, provDisplayName);
+        }
+
+        function saveHistory(barcode, provName) {
+            let history = JSON.parse(localStorage.getItem('postBarcodeHistory')) || [];
+            let time = new Date().toLocaleTimeString();
+            history.unshift({ barcode: barcode, prov: provName, time: time });
+            
+            if (history.length > 100) history.pop(); 
+            
+            localStorage.setItem('postBarcodeHistory', JSON.stringify(history));
+            loadHistory();
+        }
+
+        function loadHistory() {
+            let history = JSON.parse(localStorage.getItem('postBarcodeHistory')) || [];
+            let historyDiv = document.getElementById('history');
+            if (history.length === 0) return;
+            
+            historyDiv.innerHTML = history.map(item => 
+                `<div class="history-item">
+                    <span><strong>${item.barcode}</strong> (${item.prov})</span>
+                    <span>${item.time}</span>
+                </div>`
+            ).join('');
+        }
+
+        function verifyBarcode() {
+            let code = document.getElementById('verify-code').value.trim().toUpperCase();
+            let msgBox = document.getElementById('verify-msg');
+            msgBox.style.display = 'block';
+            msgBox.className = 'message'; 
+
+            if (code.length !== 13) {
+                msgBox.classList.add('msg-error');
+                msgBox.innerText = `❌ 验证失败：条码长度不正确，应为13位，当前为${code.length}位。`;
+                return;
+            }
+
+            let prefix = code.substring(0, 2);
+            if (!/^[A-Z]{2}$/.test(prefix)) {
+                msgBox.classList.add('msg-error');
+                msgBox.innerText = `❌ 验证失败：第1-2位必须为英文字母，当前为 [${prefix}]。`;
+                return;
+            }
+
+            let serial = code.substring(2, 10);
+            if (!/^\d{8}$/.test(serial)) {
+                msgBox.classList.add('msg-error');
+                msgBox.innerText = `❌ 验证失败：第3-10位必须为纯数字，当前为 [${serial}]。`;
+                return;
+            }
+
+            let providedChecksum = code.charAt(10);
+            let expectedChecksum = calculateChecksum(serial);
+            if (providedChecksum !== expectedChecksum) {
+                msgBox.classList.add('msg-error');
+                msgBox.innerText = `❌ 验证失败：校验码错误！根据第3-10位计算出的校验码应为 [${expectedChecksum}]，但条码中为 [${providedChecksum}]。`;
+                return;
+            }
+
+            let provCode = code.substring(11, 13);
+            
+           
+            let provDisplayName = provinceData[provCode] || `未知 (${provCode})`;
+
+            msgBox.classList.add('msg-success');
+            msgBox.innerText = `✅ 验证通过！条码完全有效。\n归属地：${provDisplayName}\n流水号：${serial}`;
+        }
+    </script>
+</body>
+</html>
